@@ -69,6 +69,26 @@ def tap_login(serial: str, x: int, y: int, login_button: np.ndarray) -> bool:
     return False
 
 
+def bring_idle_to_active(idle: str, login_button: np.ndarray) -> bool:
+    x, y = config.LOGIN_BUTTON_COORDS
+    log.info("tapping login on %s at (%d, %d)", idle, x, y)
+    if tap_login(idle, x, y, login_button):
+        return True
+
+    log.warning("%s did not confirm login at the known coordinate, attempting full recovery", idle)
+    idle_screen = adb.screencap(idle)
+    match = ensure_at_login(idle, login_button, idle_screen)
+    if match is None:
+        log.warning("%s could not be recovered to login, will retry next cycle", idle)
+        return False
+
+    x, y = match
+    if tap_login(idle, x, y, login_button):
+        return True
+    log.error("%s failed to leave the login screen after recovery, will retry next cycle", idle)
+    return False
+
+
 def ensure_at_login(serial: str, login_button: np.ndarray, screen: np.ndarray) -> tuple[int, int] | None:
     match = vision.find(screen, login_button, config.MATCH_THRESHOLD)
     if match:
@@ -131,32 +151,20 @@ def run() -> None:
         )
         if cleared:
             log.info("stage clear detected on %s", active)
-            idle_screen = adb.screencap(idle)
-            match = ensure_at_login(idle, login_button, idle_screen)
-            if match:
-                x, y = match
-                log.info("tapping login on %s at (%d, %d)", idle, x, y)
-                if tap_login(idle, x, y, login_button):
-                    log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
-                    adb.force_stop(active, config.GAME_PACKAGE)
+            if bring_idle_to_active(idle, login_button):
+                log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
+                adb.force_stop(active, config.GAME_PACKAGE)
 
-                    if last_alert_at is not None:
-                        log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
-                        notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
-                    stuck_since = None
-                    last_alert_at = None
+                if last_alert_at is not None:
+                    log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
+                    notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
+                stuck_since = None
+                last_alert_at = None
 
-                    active, idle = idle, active
-                    active_since = time.time()
-                    time.sleep(config.SWAP_COOLDOWN_SECONDS)
-                else:
-                    log.error(
-                        "%s failed to leave the login screen after %d tap attempts, will retry next cycle",
-                        idle, config.LOGIN_TAP_RETRIES,
-                    )
-                    time.sleep(config.POLL_INTERVAL_SECONDS)
+                active, idle = idle, active
+                active_since = time.time()
+                time.sleep(config.SWAP_COOLDOWN_SECONDS)
             else:
-                log.warning("%s could not be recovered to login, will retry next cycle", idle)
                 time.sleep(config.POLL_INTERVAL_SECONDS)
             continue
         time.sleep(config.POLL_INTERVAL_SECONDS)
