@@ -140,11 +140,11 @@ def run() -> None:
                     log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
                     adb.force_stop(active, config.GAME_PACKAGE)
 
-                    if stuck_since is not None:
+                    if last_alert_at is not None:
                         log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
                         notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
-                        stuck_since = None
-                        last_alert_at = None
+                    stuck_since = None
+                    last_alert_at = None
 
                     active, idle = idle, active
                     active_since = time.time()
