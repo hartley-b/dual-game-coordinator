@@ -87,12 +87,18 @@ def run() -> None:
 
     active, idle = detect_roles(login_button)
     log.info("starting: active=%s idle=%s", active, idle)
-    active_since = time.time()
+    # backdated so the first cycle polls immediately instead of waiting out the initial delay
+    active_since = time.time() - config.INITIAL_POLL_DELAY_SECONDS
 
     while True:
+        elapsed = time.time() - active_since
+        if elapsed < config.INITIAL_POLL_DELAY_SECONDS:
+            time.sleep(config.INITIAL_POLL_DELAY_SECONDS - elapsed)
+            continue
+
         screen = adb.screencap(active)
 
-        if time.time() - active_since > config.STUCK_TIMEOUT_SECONDS:
+        if elapsed > config.STUCK_TIMEOUT_SECONDS:
             log.warning("%s has not cleared a stage in %.0fs, assuming it's stuck", active, config.STUCK_TIMEOUT_SECONDS)
             match = ensure_at_login(active, login_button, screen)
             if match:
