@@ -7,6 +7,7 @@ import numpy as np
 
 import adb
 import config
+import notify
 import vision
 
 LOG_DIR = Path(__file__).parent / "logs"
@@ -89,6 +90,8 @@ def run() -> None:
     log.info("starting: active=%s idle=%s", active, idle)
     # backdated so the first cycle polls immediately instead of waiting out the initial delay
     active_since = time.time() - config.INITIAL_POLL_DELAY_SECONDS
+    stuck_since: float | None = None
+    last_alert_at: float | None = None
 
     while True:
         elapsed = time.time() - active_since
@@ -100,11 +103,25 @@ def run() -> None:
 
         if elapsed > config.STUCK_TIMEOUT_SECONDS:
             log.warning("%s has not cleared a stage in %.0fs, assuming it's stuck", active, config.STUCK_TIMEOUT_SECONDS)
+            if stuck_since is None:
+                stuck_since = time.time()
+
             match = ensure_at_login(active, login_button, screen)
             if match:
                 x, y = match
                 log.info("retapping login on %s at (%d, %d) to recover", active, x, y)
                 adb.tap(active, x, y)
+
+            stuck_elapsed = time.time() - stuck_since
+            if stuck_elapsed > config.ESCALATION_TIMEOUT_SECONDS:
+                if last_alert_at is None or time.time() - last_alert_at > config.ALERT_REPEAT_SECONDS:
+                    log.error("%s still stuck after %.0fs, sending alert", active, stuck_elapsed)
+                    notify.send(
+                        f"🚨 dual-login stuck: {active} has not cleared a stage in {int(stuck_elapsed)}s, self-recovery failing",
+                        priority="urgent",
+                    )
+                    last_alert_at = time.time()
+
             active_since = time.time()
             time.sleep(config.SWAP_COOLDOWN_SECONDS)
             continue
@@ -122,6 +139,12 @@ def run() -> None:
                 if tap_login(idle, x, y, login_button):
                     log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
                     adb.force_stop(active, config.GAME_PACKAGE)
+
+                    if stuck_since is not None:
+                        log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
+                        notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
+                        stuck_since = None
+                        last_alert_at = None
 
                     active, idle = idle, active
                     active_since = time.time()
