@@ -7,10 +7,11 @@ import numpy as np
 
 ADB_BIN = "adb"
 TAP_SETTLE_SECONDS = 0.25
+ADB_TIMEOUT_SECONDS = 10.0
 
 
 def connect(serial: str) -> None:
-    subprocess.run([ADB_BIN, "connect", serial], capture_output=True, check=False)
+    subprocess.run([ADB_BIN, "connect", serial], capture_output=True, check=False, timeout=ADB_TIMEOUT_SECONDS)
 
 
 def screencap(serial: str) -> np.ndarray:
@@ -18,6 +19,7 @@ def screencap(serial: str) -> np.ndarray:
         [ADB_BIN, "-s", serial, "exec-out", "screencap"],
         capture_output=True,
         check=True,
+        timeout=ADB_TIMEOUT_SECONDS,
     )
     raw = result.stdout
     width, height = struct.unpack_from("<II", raw, 0)
@@ -32,6 +34,7 @@ def tap(serial: str, x: int, y: int) -> None:
         [ADB_BIN, "-s", serial, "shell", "input", "tap", str(x), str(y)],
         capture_output=True,
         check=True,
+        timeout=ADB_TIMEOUT_SECONDS,
     )
     time.sleep(TAP_SETTLE_SECONDS)
 
@@ -41,4 +44,5 @@ def force_stop(serial: str, package: str) -> None:
         [ADB_BIN, "-s", serial, "shell", "am", "force-stop", package],
         capture_output=True,
         check=True,
+        timeout=ADB_TIMEOUT_SECONDS,
     )
