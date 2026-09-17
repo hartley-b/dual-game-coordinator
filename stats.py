@@ -11,6 +11,7 @@ LOG_BASENAME = "coordinator.log"
 LINE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (.*)$")
 CLEAR_MARKER = "stage clear detected on"
 STUCK_MARKER = "has not cleared a stage in"
+RECOVERED_MARKER = "recovered after being stuck for"
 STARTING_MARKER = "starting: active="
 
 
@@ -42,16 +43,15 @@ def compute_stats() -> dict:
     clear_durations: list[float] = []
     prev_clear_ts: datetime | None = None
     saw_stuck_since_last_clear = False
-    stuck_start: datetime | None = None
+
+    stuck_open_since: datetime | None = None
     downtime = timedelta()
 
     for ts, msg in _iter_lines():
         if STARTING_MARKER in msg:
-            # a restart is a clean boundary: close any dangling stuck episode here,
+            # a restart is a clean boundary: drop any dangling episode here,
             # and don't let clear-interval math span across the restart
-            if stuck_start is not None and ts > window_start:
-                downtime += ts - max(stuck_start, window_start)
-            stuck_start = None
+            stuck_open_since = None
             prev_clear_ts = None
             saw_stuck_since_last_clear = False
             continue
@@ -63,20 +63,21 @@ def compute_stats() -> dict:
                 clear_durations.append((ts - prev_clear_ts).total_seconds())
             prev_clear_ts = ts
             saw_stuck_since_last_clear = False
-
-            if stuck_start is not None:
-                if ts > window_start:
-                    downtime += ts - max(stuck_start, window_start)
-                stuck_start = None
             continue
 
         if STUCK_MARKER in msg:
             saw_stuck_since_last_clear = True
-            if stuck_start is None:
-                stuck_start = ts
+            if stuck_open_since is None:
+                stuck_open_since = ts
+            continue
 
-    if stuck_start is not None:
-        downtime += now - max(stuck_start, window_start)
+        if RECOVERED_MARKER in msg:
+            if stuck_open_since is not None and ts > window_start:
+                downtime += ts - max(stuck_open_since, window_start)
+            stuck_open_since = None
+
+    if stuck_open_since is not None:
+        downtime += now - max(stuck_open_since, window_start)
 
     recent = clear_durations[-config.STATS_CLEAR_SAMPLE_SIZE:]
     window_seconds = config.STATS_UPTIME_WINDOW_HOURS * 3600

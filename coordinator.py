@@ -132,9 +132,10 @@ def run() -> None:
                 log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
                 adb.force_stop(active, config.GAME_PACKAGE)
 
-                if last_alert_at is not None:
+                if stuck_since is not None:
                     log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
-                    notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
+                    if last_alert_at is not None:
+                        notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
                 stuck_since = None
                 last_alert_at = None
 
@@ -164,8 +165,8 @@ def run() -> None:
                             )
                             last_idle_alert_at = time.time()
                 else:
+                    log.info("%s confirmed back at login after %.0fs", idle, time.time() - idle_stuck_since)
                     if last_idle_alert_at is not None:
-                        log.info("%s recovered after being unreachable for %.0fs", idle, time.time() - idle_stuck_since)
                         notify.send(f"✅ dual-login recovered: {idle} is back at login", priority="default")
                     idle_stuck_since = None
                     last_idle_alert_at = None
