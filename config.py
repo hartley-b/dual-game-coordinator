@@ -1,4 +1,19 @@
+import os
 from pathlib import Path
+
+
+def _load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_file(Path(__file__).parent / ".env")
 
 REFERENCES_DIR = Path(__file__).parent / "references"
 
@@ -13,7 +28,9 @@ INITIAL_POLL_DELAY_SECONDS = 18.0
 STUCK_TIMEOUT_SECONDS = 60.0
 RECOVERY_TIMEOUT_SECONDS = 60.0
 
-NTFY_URL = "https://ntfy.sh/REDACTED"
+# set in .env (see .env.example) or export DUAL_LOGIN_NTFY_URL directly
+# left unset, notify.send() becomes a no-op and the coordinator runs without alerts
+NTFY_URL = os.environ.get("DUAL_LOGIN_NTFY_URL", "")
 ESCALATION_TIMEOUT_SECONDS = 240.0
 ALERT_REPEAT_SECONDS = 300.0
 ERROR_RETRY_SECONDS = 5.0
