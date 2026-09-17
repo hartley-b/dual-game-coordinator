@@ -116,6 +116,33 @@ def run() -> None:
                         last_alert_at = time.time()
 
                 active_since = time.time()
+                cleared = False
+            else:
+                cleared = vision.find(screen, stage_clear, config.MATCH_THRESHOLD) or vision.find(
+                    screen, clear_banner, config.MATCH_THRESHOLD
+                )
+
+            if cleared:
+                log.info("stage clear detected on %s", active)
+                time.sleep(config.STAGE_CLEAR_TAP_DELAY_SECONDS)
+                x, y = config.LOGIN_BUTTON_COORDS
+                log.info("tapping login on %s at (%d, %d)", idle, x, y)
+                adb.tap(idle, x, y)
+
+                log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
+                adb.force_stop(active, config.GAME_PACKAGE)
+
+                if last_alert_at is not None:
+                    log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
+                    notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
+                stuck_since = None
+                last_alert_at = None
+
+                active, idle = idle, active
+                active_since = time.time()
+                idle_since = time.time()
+                idle_stuck_since = None
+                last_idle_alert_at = None
                 continue
 
             idle_elapsed = time.time() - idle_since
@@ -143,31 +170,6 @@ def run() -> None:
                     idle_stuck_since = None
                     last_idle_alert_at = None
                 idle_since = time.time()
-
-            cleared = vision.find(screen, stage_clear, config.MATCH_THRESHOLD) or vision.find(
-                screen, clear_banner, config.MATCH_THRESHOLD
-            )
-            if cleared:
-                log.info("stage clear detected on %s", active)
-                x, y = config.LOGIN_BUTTON_COORDS
-                log.info("tapping login on %s at (%d, %d)", idle, x, y)
-                adb.tap(idle, x, y)
-
-                log.info("force-stopping %s on %s to skip results animation", config.GAME_PACKAGE, active)
-                adb.force_stop(active, config.GAME_PACKAGE)
-
-                if last_alert_at is not None:
-                    log.info("recovered after being stuck for %.0fs", time.time() - stuck_since)
-                    notify.send(f"✅ dual-login recovered: {active} is clearing stages again", priority="default")
-                stuck_since = None
-                last_alert_at = None
-
-                active, idle = idle, active
-                active_since = time.time()
-                idle_since = time.time()
-                idle_stuck_since = None
-                last_idle_alert_at = None
-                continue
 
             time.sleep(config.POLL_INTERVAL_SECONDS)
         except Exception as exc:
