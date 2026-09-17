@@ -1,6 +1,6 @@
 # dual-login
 
-Coordinates two BlueStacks instances running Yo-kai Watch Punipuni so that only one
+Coordinates two BlueStacks instances running Yo-kai Watch Puni Puni so that only one
 device plays a stage at a time. Each device runs its own in-game macro (Smart
 AutoClicker / Klick'r) that plays stages and navigates menus. This tool watches both
 screens over ADB and, when the active device clears a stage, taps login on the idle
@@ -11,6 +11,8 @@ rather than fixed timers, so handoffs occur immediately on detection.
 The tool also includes automatic recovery for a device that stops progressing,
 optional push alerts via ntfy.sh when recovery fails, and a standalone stats reader
 that reports clear speed and uptime from the log.
+
+It reduces normal stage completion times up-to 2x | 40s to 21s
 
 ## Benchmarking & Iteration
 
