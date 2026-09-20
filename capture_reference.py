@@ -22,7 +22,13 @@ def main() -> None:
     crop = screen[y : y + h, x : x + w]
     config.REFERENCES_DIR.mkdir(exist_ok=True)
     out_path = config.REFERENCES_DIR / f"{name}.png"
-    cv2.imwrite(str(out_path), crop)
+    # cv2.imwrite() can't handle non-ASCII characters in a file path on Windows;
+    # encoding in memory and writing the bytes ourselves avoids that entirely
+    success, encoded = cv2.imencode(".png", crop)
+    if not success:
+        print("failed to encode image, aborting")
+        return
+    out_path.write_bytes(encoded.tobytes())
     print(f"saved {out_path}")
 
 

@@ -6,9 +6,12 @@ import numpy as np
 
 def load_template(name: str, references_dir: Path) -> np.ndarray:
     path = references_dir / f"{name}.png"
-    template = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    # cv2.imread() can't handle non-ASCII characters in a file path on Windows;
+    # reading the bytes ourselves and decoding avoids that entirely
+    data = np.frombuffer(path.read_bytes(), dtype=np.uint8)
+    template = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if template is None:
-        raise FileNotFoundError(f"no reference image at {path}")
+        raise FileNotFoundError(f"could not decode reference image at {path}")
     return template
 
 

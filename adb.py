@@ -1,9 +1,12 @@
+import random
 import struct
 import subprocess
 import time
 
 import cv2
 import numpy as np
+
+import config
 
 ADB_BIN = "adb"
 TAP_SETTLE_SECONDS = 0.25
@@ -30,6 +33,10 @@ def screencap(serial: str) -> np.ndarray:
 
 
 def tap(serial: str, x: int, y: int) -> None:
+    jitter = config.TAP_JITTER_PIXELS
+    if jitter:
+        x += random.randint(-jitter, jitter)
+        y += random.randint(-jitter, jitter)
     subprocess.run(
         [ADB_BIN, "-s", serial, "shell", "input", "tap", str(x), str(y)],
         capture_output=True,
