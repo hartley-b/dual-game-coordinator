@@ -107,6 +107,8 @@ It reduces normal stage completion times up-to 2x | 40s to 21s
    only for detection and recovery.
 
 4. Optionally enable push alerts.
+   
+5. ```adb kill-server && adb start-server && adb devices```
 
 ## Running
 
