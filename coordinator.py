@@ -70,6 +70,7 @@ def ensure_at_login(serial: str, login_button: np.ndarray, screen: np.ndarray) -
 
 
 def run() -> None:
+    adb.restart_server()
     stage_clear = vision.load_template(config.STAGE_CLEAR_TEMPLATE, config.REFERENCES_DIR)
     clear_banner = vision.load_template(config.CLEAR_BANNER_TEMPLATE, config.REFERENCES_DIR)
     login_button = vision.load_template(config.LOGIN_BUTTON_TEMPLATE, config.REFERENCES_DIR)

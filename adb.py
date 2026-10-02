@@ -13,6 +13,11 @@ TAP_SETTLE_SECONDS = 0.25
 ADB_TIMEOUT_SECONDS = 10.0
 
 
+def restart_server() -> None:
+    for args in (["kill-server"], ["start-server"], ["devices"]):
+        subprocess.run([ADB_BIN, *args], capture_output=True, check=False, timeout=ADB_TIMEOUT_SECONDS)
+
+
 def connect(serial: str) -> None:
     subprocess.run([ADB_BIN, "connect", serial], capture_output=True, check=False, timeout=ADB_TIMEOUT_SECONDS)
 
